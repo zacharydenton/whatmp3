@@ -22,6 +22,8 @@ Running `whatmp3` on its own won't do too much. You need to specify the lame or 
 		specify output directory for torrents
 	--zeropad
 		zeropad tracklists (default true)
+    --dither
+        dither FLACs to 16/44 before encoding (default false)
 	--passkey="PASSKEY"
 		specify tracker passkey
 	--tracker="TRACKER"
