@@ -16,9 +16,11 @@ VERSION = "3.4"
 
 ### BEGIN CONFIGURATION ###
 
-# Output folder unless specified: ("/home/user/Desktop/")
-#output = os.path.join(os.environ['HOME'], "Desktop/")
-output = os.getcwd()
+# Output folder unless specified:
+data_dir = os.getcwd()
+
+# Torrents are placed in this directory
+torrent_dir = output
 
 # Do you want to move additional files (.jpg, .log, etc)?
 moveother = 1
@@ -145,7 +147,8 @@ def main():
     parser.add_option('-m', '--moveother',  action='store_true',    dest='moveother',   default=moveother,  help='move additional files (Default: True)')
     parser.add_option('-p', '--passkey',    dest='passkey',     default=passkey,    help='tracker PASSKEY', metavar='PASSKEY')
     parser.add_option('-t', '--tracker',    dest='tracker',     default=tracker,    help='tracker URL (Default: "http://tracker.what.cd:34000/")', metavar='URL')
-    parser.add_option('-o', '--output', dest='output',      default=output,     help='set the output PATH', metavar='PATH')
+    parser.add_option('-o', '--output', dest='data_dir',      default=data_dir,     help='set the data output PATH', metavar='PATH')
+    parser.add_option('--torrent_dir', dest='torrent_dir',      default=torrent_dir,     help='set the torrent output PATH', metavar='PATH')
     parser.add_option('-z', '--zeropad',    action='store_true',    dest='zeropad',     default=zeropad,    help='zeropad track numbers (Default: True)')
     parser.add_option('-d', '--dither', action='store_true',    dest='dither',      default=dither, help='dither FLACs to 16/44 before encoding (Default: False)')
     parser.add_option('-r', '--replaygain', action='store_true',    dest='replaygain',  default=False,  help='add ReplayGain to new files (Default: False)')
@@ -160,8 +163,11 @@ def main():
     if len(flacdirs) < 1:
         parser.error("Incorrect number of arguments")
 
-    if not options.output.endswith('/'):
-        options.output += '/'
+    if not options.data_dir.endswith('/'):
+        options.data_dir += '/'
+
+    if not options.torrent_dir.endswith('/'):
+        options.torrent_dir += '/'
 
     if len(codecs) == 0:
         print('You need to provide at least one format to transcode to (320, V0, Q8 ...)')
@@ -179,16 +185,16 @@ def main():
         if options.original:
             print('Working with FLAC...')
 
-            if options.output and options.passkey and options.tracker and not options.notorrent:
+            if options.torrent_dir and options.passkey and options.tracker and not options.notorrent:
                 if options.verbose: print('Creating torrent...')
-                torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, esc(options.output + os.path.basename(flacdir)), esc(flacdir))
+                torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, esc(options.torrent_dir + os.path.basename(flacdir)), esc(flacdir))
                 if options.verbose: print(escape(torrent_command))
                 os.system(escape(torrent_command))
 
             print('Finished working with FLAC')
 
         for codec in codecs:
-            mp3_dir = options.output + os.path.basename(flacdir)
+            mp3_dir = options.data_dir + os.path.basename(flacdir)
             if 'FLAC' in flacdir:
                 mp3_dir = re.sub(re.compile('FLAC', re.I), codec, mp3_dir)
             else:
@@ -255,9 +261,9 @@ def main():
                         if enc_options[codec]['enc'] == 'neroAacEnc':
                             os.system(escape('aacgain -q -c "' + os.path.join(dirpath, name) + '"/*.m4a'))
 
-            if options.output and options.passkey and options.tracker and not options.notorrent:
+            if options.torrent_dir and options.passkey and options.tracker and not options.notorrent:
                 if options.verbose: print('Creating torrent...')
-                torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape(options.output + os.path.basename(mp3_dir)), mp3_dir)
+                torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape(options.torrent_dir + os.path.basename(mp3_dir)), mp3_dir)
                 if options.verbose: print(escape(torrent_command))
                 os.system(escape(torrent_command))
 
