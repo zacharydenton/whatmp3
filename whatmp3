@@ -111,6 +111,9 @@ class Transcode(threading.Thread):
                 flac_command = 'flac -dc -- "' + esc(self.file) + '" | ' + dither_command + ' | ' + flac_command % (esc(enc_options[self.codec]['opts']), esc(mp3_filename), esc(mp3_filename), esc(tags['TITLE']), esc(tags['ALBUM']), esc(tags['ARTIST']), esc(tags['TRACKNUMBER']), esc(tags['GENRE']), esc(tags['DATE']))
             else:
                 flac_command = 'flac -dc -- "' + esc(self.file) + '" | ' + flac_command % (esc(enc_options[self.codec]['opts']), esc(mp3_filename), esc(mp3_filename), esc(tags['TITLE']), esc(tags['ALBUM']), esc(tags['ARTIST']), esc(tags['TRACKNUMBER']), esc(tags['GENRE']), esc(tags['DATE']))
+        elif enc_options[self.codec]['enc'] == 'flac' and self.options.dither:
+            # seems like FLAC and SoX don't work together via pipes. use files instead.
+            flac_command = 'flac -dc -- "' + esc(self.file) + '" | ' + dither_command + ' > "' + esc(mp3_filename) + '.wav"; ' + flac_command % (esc(enc_options[self.codec]['opts']), esc(tags['TITLE']), esc(tags['ALBUM']), esc(tags['ARTIST']), esc(tags['TRACKNUMBER']), esc(tags['GENRE']), esc(tags['DATE']), esc(mp3_filename)) + ' < "' + esc(mp3_filename) + '.wav"'
         else:
             if self.options.dither:
                 flac_command = 'flac -dc -- "' + esc(self.file) + '" | ' + dither_command + ' | ' + flac_command % (esc(enc_options[self.codec]['opts']), esc(tags['TITLE']), esc(tags['ALBUM']), esc(tags['ARTIST']), esc(tags['TRACKNUMBER']), esc(tags['GENRE']), esc(tags['DATE']), esc(mp3_filename))
@@ -219,6 +222,10 @@ def main():
 
             for t in threads:
                 t.join()
+
+            if codec == 'FLAC' and options.dither:
+                # discard the temporary .WAVs we created to circumvent the FLAC bug.
+                os.system('rm "' + esc(mp3_dir) + '"/*.wav')
 
             print('\nEncoding with ' + codec + ' finished.')
 
