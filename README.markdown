@@ -8,10 +8,10 @@ Usage
 -----
 Running `whatmp3` on its own won't do too much. You need to specify the lame or oggenc flags you want to convert with, and the directories you want to convert.
 
-	--320 --V2 --V0 --Q8 --ALAC...
+	--320 --V2 --V0 --Q8 --ALAC --FLAC...
 		encode to 320, V2, V0, or whatever else specified in 'enc_options' in the file
-	--FLAC
-		create torrent for FLAC
+	--original
+		create torrent for original FLACs
 	--help
 		print help message and quit
 	--verbose

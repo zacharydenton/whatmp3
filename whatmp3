@@ -45,7 +45,8 @@ enc_options = {
     'V2':   {'enc': 'lame',     'opts': '-V 2 --vbr-new --ignore-tag-errors'},
     'Q8':   {'enc': 'oggenc',   'opts': '-q 8'},
     'AAC':  {'enc': 'neroAacEnc',   'opts': '-br 320000'},
-    'ALAC': {'enc': 'ffmpeg',   'opts': '-i - -acodec alac'}
+    'ALAC': {'enc': 'ffmpeg',   'opts': '-i - -acodec alac'},
+    'FLAC': {'enc': 'flac',     'opts': '--best'}
 }
 
 ### END CONFIGURATION ###
@@ -97,8 +98,13 @@ class Transcode(threading.Thread):
             flac_command = 'ffmpeg %s -metadata title="%s" -metadata album="%s" -metadata author="%s" -metadata track="%s" -metadata genre="%s" -metadata date="%s" "%s.m4a" 2>&1'
         elif enc_options[self.codec]['enc'] == 'neroAacEnc':
             flac_command = 'neroAacEnc %s -if - -of "%s.m4a" 2>&1 && neroAacTag "%s.m4a" -meta:title="%s" -meta:album="%s" -meta:artist="%s" -meta:track="%s" -meta:genre="%s" -meta:year="%s"'
+        elif enc_options[self.codec]['enc'] == 'flac':
+            if self.options.replaygain:
+                flac_command = 'flac %s --replay-gain -T "TITLE=%s" -T "ALBUM=%s" -T "ALBUM=%s" -T "TRACKNUMBER=%s" -T "GENRE=%s" -T "DATE=%s" -o "%s.flac" - 2>&1'
+            else:
+                flac_command = 'flac %s -T "TITLE=%s" -T "ALBUM=%s" -T "ALBUM=%s" -T "TRACKNUMBER=%s" -T "GENRE=%s" -T "DATE=%s" -o "%s.flac" - 2>&1'
 
-        dither_command = 'sox -t .wav - -b 16 -t .wav - rate 44100 dither'
+        dither_command = 'sox -t wav - -b 16 -t wav - rate 44100 dither'
 
         if enc_options[self.codec]['enc'] == 'neroAacEnc':
             if self.options.dither:
@@ -140,8 +146,8 @@ def main():
     parser.add_option('-z', '--zeropad',    action='store_true',    dest='zeropad',     default=zeropad,    help='zeropad track numbers (Default: True)')
     parser.add_option('-d', '--dither', action='store_true',    dest='dither',      default=dither, help='dither FLACs to 16/44 before encoding (Default: False)')
     parser.add_option('-r', '--replaygain', action='store_true',    dest='replaygain',  default=False,  help='add ReplayGain to new files (Default: False)')
-    parser.add_option('--threads',      type="int",     dest='max_threads', default=max_threads,    help='set number of threads THREADS (Default: 1)', metavar='THREADS')
-    parser.add_option('--FLAC',     action="callback",  callback=add_enc_option)
+    parser.add_option('--threads',      type="int",     dest='max_threads', default=max_threads,    help='set number of threads THREADS (Default: 4)', metavar='THREADS')
+    parser.add_option('-c', '--original',     action="store_true", dest='original', default=False, help='create a torrent for the original FLACs (Default:False)')
 
     for enc_opt in enc_options.keys():
         parser.add_option("--" + enc_opt, action="callback", callback=add_enc_option)
@@ -167,25 +173,34 @@ def main():
                 if fnmatch.fnmatch(name, '*.flac'):
                     flacfiles.append(os.path.join(dirpath, name))
 
+        if options.original:
+            print('Working with FLAC...')
+
+            if options.output and options.passkey and options.tracker and not options.notorrent:
+                if options.verbose: print('Creating torrent...')
+                torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, esc(options.output + os.path.basename(flacdir)), esc(flacdir))
+                if options.verbose: print(escape(torrent_command))
+                os.system(escape(torrent_command))
+
+            print('Finished working with FLAC')
+
         for codec in codecs:
-            if codec == "FLAC":
-                print('Working with FLAC...')
-
-                if options.output and options.passkey and options.tracker and not options.notorrent:
-                    if options.verbose: print('Creating torrent...')
-                    torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, esc(options.output + os.path.basename(flacdir)), esc(flacdir))
-                    if options.verbose: print(escape(torrent_command))
-                    os.system(escape(torrent_command))
-
-                print('Finished working with FLAC')
-                continue
-
             mp3_dir = options.output + os.path.basename(flacdir)
             if 'FLAC' in flacdir:
                 mp3_dir = re.sub(re.compile('FLAC', re.I), codec, mp3_dir)
             else:
                 mp3_dir = mp3_dir + " (" + codec + ")"
-                mp3_dir = re.sub(re.compile('FLAC', re.I), '', mp3_dir)
+                if codec != 'FLAC':
+                    mp3_dir = re.sub(re.compile('FLAC', re.I), '', mp3_dir)
+            if options.dither:
+                if '24' in flacdir and '96' in flacdir:
+                    # XXX: theoretically, this could replace part of the album title too.
+                    # e.g. "26 days in 96 castles - [24-96]" would become "16 days in 44 castles - [16-44]"
+                    mp3_dir = re.sub(re.compile('24', re.I), '16', mp3_dir)
+                    mp3_dir = re.sub(re.compile('96', re.I), '44', mp3_dir)
+                else:
+                    mp3_dir += " [16-44]"
+
             if not os.path.exists(mp3_dir):
                 os.makedirs(mp3_dir)
 
