@@ -20,7 +20,7 @@ VERSION = "3.4"
 data_dir = os.getcwd()
 
 # Torrents are placed in this directory
-torrent_dir = output
+torrent_dir = data_dir
 
 # Do you want to move additional files (.jpg, .log, etc)?
 moveother = 1
@@ -35,7 +35,7 @@ dither = 0
 tracker = "http://tracker.what.cd:34000/"
 
 # Specify torrent passkey
-passkey = ""
+passkey = "tracker_passkey_here"
 
 # Max number of threads (ex: Normal: 1, Dual-core = 2, Hyperthreaded Dual-core = 4)
 max_threads = 4
@@ -50,6 +50,9 @@ enc_options = {
     'ALAC': {'enc': 'ffmpeg',   'opts': '-i - -acodec alac'},
     'FLAC': {'enc': 'flac',     'opts': '--best'}
 }
+
+# Default codecs - these are used if the --original option is specified
+default_codecs = ['V0', 'V2', 'Q8', '320', 'AAC']
 
 ### END CONFIGURATION ###
 
@@ -153,12 +156,17 @@ def main():
     parser.add_option('-d', '--dither', action='store_true',    dest='dither',      default=dither, help='dither FLACs to 16/44 before encoding (Default: False)')
     parser.add_option('-r', '--replaygain', action='store_true',    dest='replaygain',  default=False,  help='add ReplayGain to new files (Default: False)')
     parser.add_option('--threads',      type="int",     dest='max_threads', default=max_threads,    help='set number of threads THREADS (Default: 4)', metavar='THREADS')
-    parser.add_option('-c', '--original',     action="store_true", dest='original', default=False, help='create a torrent for the original FLACs (Default:False)')
+    parser.add_option('-c', '--original',     action="store_true", dest='original', default=False, help='create a torrent for the original FLACs and convert to all of your default formats (Default:False)')
 
     for enc_opt in enc_options.keys():
         parser.add_option("--" + enc_opt, action="callback", callback=add_enc_option)
 
     (options, flacdirs) = parser.parse_args()
+
+    if options.original:
+        for codec in default_codecs:
+            if codec not in codecs:
+                codecs.append(codec)
 
     if len(flacdirs) < 1:
         parser.error("Incorrect number of arguments")
