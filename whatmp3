@@ -105,7 +105,7 @@ def login(username, password, tracker='whatcd'):
 
     return browser
 
-def upload(torrent, encoder, bitrate, logfile, original=False, tracker='whatcd'):
+def upload(torrent, encoder, bitrate, logfiles, original=False, tracker='whatcd'):
     print "Uploading %s %s..." % (encoder, bitrate)
     if not UPLOAD.has_key('upload_url'):
         done = False
@@ -215,7 +215,11 @@ def upload(torrent, encoder, bitrate, logfile, original=False, tracker='whatcd')
 
     # add the logfile
     if encoder == 'FLAC' and UPLOAD['media'] == 'CD':
-        browser.find_control('logfiles[]').add_file(open(logfile), 'text/plain', os.path.basename(logfile))
+        try:
+            logfile = logfiles[0]
+            browser.find_control('logfiles[]').add_file(open(logfile), 'text/plain', os.path.basename(logfile))
+        except:
+            pass
 
     # specify tags
     if original:
@@ -406,8 +410,7 @@ def main():
                         bitrate = '24bit Lossless'
                     else:
                         bitrate = 'Lossless'
-                    logfile = logfiles[0]
-                    upload(torrent, encoder, bitrate, logfile, original=True)
+                    upload(torrent, encoder, bitrate, logfiles, original=True)
 
             print('Finished working with FLAC')
 
@@ -509,8 +512,7 @@ def main():
                         encoder = 'FLAC'
                         bitrate = 'Lossless'
 
-                    logfile = logfiles[0]
-                    upload(torrent, encoder, bitrate, logfile)
+                    upload(torrent, encoder, bitrate, logfiles)
 
         if options.verbose: print('All done with ' + flacdir + ' ...')
     return 0
