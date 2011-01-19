@@ -252,7 +252,6 @@ def upload(torrent, encoder, bitrate, logfile, original=False, tracker='whatcd')
 
     # submit the form
     response = browser.submit()
-    print(response.read())
 
 class Transcode(threading.Thread):
     def __init__(self, file, flacdir, mp3_dir, codec, options, cv):
@@ -289,7 +288,7 @@ class Transcode(threading.Thread):
         elif enc_options[self.codec]['enc'] == 'ffmpeg':
             flac_command = 'ffmpeg %s -metadata title="%s" -metadata album="%s" -metadata author="%s" -metadata track="%s" -metadata genre="%s" -metadata date="%s" "%s.m4a" 2>&1'
         elif enc_options[self.codec]['enc'] == 'neroAacEnc':
-            flac_command = 'neroAacEnc %s -if - -of "%s.m4a" 2>&1 && neroAacTag "%s.m4a" -meta:title="%s" -meta:album="%s" -meta:artist="%s" -meta:track="%s" -meta:genre="%s" -meta:year="%s"'
+            flac_command = 'neroAacEnc %s -if - -of "%s.m4a" >/dev/null 2>/dev/null && neroAacTag "%s.m4a" -meta:title="%s" -meta:album="%s" -meta:artist="%s" -meta:track="%s" -meta:genre="%s" -meta:year="%s"'
         elif enc_options[self.codec]['enc'] == 'flac':
             if self.options.replaygain:
                 flac_command = 'flac %s --replay-gain -T "TITLE=%s" -T "ALBUM=%s" -T "ALBUM=%s" -T "TRACKNUMBER=%s" -T "GENRE=%s" -T "DATE=%s" -o "%s.flac" - 2>&1'
