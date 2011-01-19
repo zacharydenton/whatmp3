@@ -137,7 +137,7 @@ def upload(torrent, encoder, bitrate, logfile, original=False, tracker='whatcd')
             browser[field] = UPLOAD[field]
 
     # add the torrent file
-    browser.find_control('file_input').add_file(open(torrent))
+    browser.find_control('file_input').add_file(open(torrent), 'text/plain', os.path.basename(torrent))
 
     # specify artists
     if original:
@@ -211,7 +211,7 @@ def upload(torrent, encoder, bitrate, logfile, original=False, tracker='whatcd')
 
     # add the logfile
     if encoder == 'FLAC' and UPLOAD['media'] == 'CD':
-        browser.find_control('logfiles[]').add_file(open(logfile))
+        browser.find_control('logfiles[]').add_file(open(logfile), 'text/plain', os.path.basename(logfile))
 
     # specify tags
     if original:
