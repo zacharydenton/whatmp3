@@ -182,7 +182,7 @@ def upload(torrent, encoder, bitrate, logfiles, original=False, tracker='whatcd'
         print('leave blank if original release')
         UPLOAD['remaster'] = get_input('remaster')
     if UPLOAD['remaster']:
-        browser['remaster'] = UPLOAD['remaster']
+        browser.find_control('remaster').set_single('1')
     
         # specify edition information
         fill_out('remaster_year')
