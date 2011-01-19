@@ -104,20 +104,19 @@ def login(username, password, tracker='whatcd'):
 
     return browser
 
-def upload(torrent, encoder, bitrate, logfile, tracker='whatcd'):
-    if not UPLOAD.has_key('upload_url') or UPLOAD['upload_url'] == 'http://what.cd/upload.php':
+def upload(torrent, encoder, bitrate, logfile, original=False, tracker='whatcd'):
+    if original:
         upload_url = 'http://what.cd/upload.php'
-        if 'y' in raw_input('"%s" - Is this correct? ' % upload_url).lower():
-            done = True
-        else:
+    else:
+        if not UPLOAD.has_key('upload_url'):
             done = False
-        while not done:
-            upload_url = raw_input('Upload URL? ')
-            if 'y' in raw_input('"%s" - Is this correct? ' % upload_url).lower():
-                done = True
+            while not done:
+                upload_url = raw_input('Upload URL? ')
+                if 'y' in raw_input('"%s" - Is this correct? ' % upload_url).lower():
+                    done = True
  
-        UPLOAD['upload_url'] = upload_url
-    upload_url = UPLOAD['upload_url']
+            UPLOAD['upload_url'] = upload_url
+        upload_url = UPLOAD['upload_url']
 
     browser = login(username, password, tracker)
     browser.open(upload_url)
@@ -243,10 +242,7 @@ def upload(torrent, encoder, bitrate, logfile, tracker='whatcd'):
 
     # submit the form
     response = browser.submit()
-
-    # make a note of the torrent URL for later
-    UPLOAD['upload_url'] = browser.find_link(text='Add format').url
-    print(UPLOAD['upload_url'])
+    print response.read()
 
 class Transcode(threading.Thread):
     def __init__(self, file, flacdir, mp3_dir, codec, options, cv):
@@ -397,7 +393,7 @@ def main():
                     else:
                         bitrate = 'Lossless'
                     logfile = logfiles[0]
-                    upload(torrent, encoder, bitrate, logfile, 'whatcd')
+                    upload(torrent, encoder, bitrate, logfile, original=True)
 
             print('Finished working with FLAC')
 
@@ -497,11 +493,10 @@ def main():
                         bitrate = 'Lossless'
 
                     logfile = logfiles[0]
-                    upload(torrent, encoder, bitrate, logfile, 'whatcd')
+                    upload(torrent, encoder, bitrate, logfile)
 
         if options.verbose: print('All done with ' + flacdir + ' ...')
     return 0
 
 if __name__ == '__main__':
     main()
-    #upload('x.torrent', 'FLAC', 'Lossless', 'x.log', 'whatcd')
