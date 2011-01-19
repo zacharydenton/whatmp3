@@ -106,6 +106,7 @@ def login(username, password, tracker='whatcd'):
     return browser
 
 def upload(torrent, encoder, bitrate, logfile, original=False, tracker='whatcd'):
+    print "Uploading %s %s..." % (encoder, bitrate)
     if original:
         upload_url = 'http://what.cd/upload.php'
     else:
