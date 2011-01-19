@@ -58,6 +58,14 @@ enc_options = {
 # Default codecs - these are used if the --original option is specified
 default_codecs = ['V0', 'V2', 'Q8', '320', 'AAC']
 
+### END CONFIGURATION ###
+
+try:
+    import mechanize
+    UPLOAD = {}
+except:
+    UPLOAD = None
+
 TRACKERS = {
     'whatcd' : {
         'login' : {
@@ -69,13 +77,6 @@ TRACKERS = {
         },
     },
 }
-### END CONFIGURATION ###
-
-try:
-    import mechanize
-    UPLOAD = {}
-except:
-    UPLOAD = None
 
 codecs = []
 
@@ -139,32 +140,38 @@ def upload(torrent, encoder, bitrate, logfile, original=False, tracker='whatcd')
     browser.find_control('file_input').add_file(open(torrent))
 
     # specify artists
-    fill_out('artists[]')
+    if original:
+        fill_out('artists[]')
 
     # specify album title
-    fill_out('title')
+    if original:
+        fill_out('title')
 
     # specify album year
-    fill_out('year')
+    if original:
+        fill_out('year')
 
     # specify record label
-    fill_out('record_label')
+    if original:
+        fill_out('record_label')
 
     # specify catalogue number
-    fill_out('catalogue_number')
+    if original:
+        fill_out('catalogue_number')
 
     # specify release type
-    if not UPLOAD.has_key('releasetype'):
-        releasetype = browser.find_control('releasetype')
-        for item in releasetype.get_items():
-            print(item, item.get_labels()[0].text)
-        done = False
-        while not done:
-            response = raw_input('Release type (select a number from the list) ? ')
-            if 'y' in raw_input('"%s" - Is this correct? ' % response).lower():
-                UPLOAD['releasetype'] = response.strip()
-                done = True
-    browser.find_control('releasetype').set('1', UPLOAD['releasetype'])
+    if original:
+        if not UPLOAD.has_key('releasetype'):
+            releasetype = browser.find_control('releasetype')
+            for item in releasetype.get_items():
+                print(item, item.get_labels()[0].text)
+            done = False
+            while not done:
+                response = raw_input('Release type (select a number from the list) ? ')
+                if 'y' in raw_input('"%s" - Is this correct? ' % response).lower():
+                    UPLOAD['releasetype'] = response.strip()
+                    done = True
+        browser.find_control('releasetype').set('1', UPLOAD['releasetype'])
 
     # specify edition information
     if not UPLOAD.has_key('remaster'):
@@ -207,24 +214,27 @@ def upload(torrent, encoder, bitrate, logfile, original=False, tracker='whatcd')
         browser.find_control('logfiles[]').add_file(open(logfile))
 
     # specify tags
-    fill_out('tags')
+    if original:
+        fill_out('tags')
 
     # specify image
-    fill_out('image')
+    if original:
+        fill_out('image')
 
     # specify album description
-    if not UPLOAD.has_key('album_desc'):
-        done = False
-        desc = []
-        print("Album description:")
-        print("CTRL+C to end input")
-        while not done:
-            try:
-                desc.append(raw_input())
-            except KeyboardInterrupt:
-                done = True
-        UPLOAD['album_desc'] = "\n".join(desc)
-    browser['album_desc'] = UPLOAD['album_desc']
+    if original:
+        if not UPLOAD.has_key('album_desc'):
+            done = False
+            desc = []
+            print("Album description:")
+            print("CTRL+C to end input")
+            while not done:
+                try:
+                    desc.append(raw_input())
+                except KeyboardInterrupt:
+                    done = True
+            UPLOAD['album_desc'] = "\n".join(desc)
+        browser['album_desc'] = UPLOAD['album_desc']
 
     # specify release description
     if not UPLOAD.has_key('release_desc'):
@@ -335,7 +345,8 @@ def main():
     parser.add_option('-r', '--replaygain', action='store_true',    dest='replaygain',  default=False,  help='add ReplayGain to new files (Default: False)')
     parser.add_option('--threads',      type="int",     dest='max_threads', default=max_threads,    help='set number of threads THREADS (Default: 4)', metavar='THREADS')
     parser.add_option('-c', '--original',     action="store_true", dest='original', default=False, help='create a torrent for the original FLACs and convert to all of your default formats (Default:False)')
-    parser.add_option('-u', '--upload',     action="store_true", dest='upload', default=False, help='upload the torrent after creating it (Default:False)')
+    if UPLOAD is not None:
+        parser.add_option('-u', '--upload',     action="store_true", dest='upload', default=False, help='upload the torrent after creating it (Default:False)')
 
     for enc_opt in enc_options.keys():
         parser.add_option("--" + enc_opt, action="callback", callback=add_enc_option)
@@ -408,7 +419,7 @@ def main():
             if options.dither:
                 if '24' in flacdir and '96' in flacdir:
                     # XXX: theoretically, this could replace part of the album title too.
-                    # e.g. "26 days in 96 castles - [24-96]" would become "16 days in 44 castles - [16-44]"
+                    # e.g. "24 days in 96 castles - [24-96]" would become "16 days in 44 castles - [16-44]"
                     mp3_dir = re.sub(re.compile('24', re.I), '16', mp3_dir)
                     mp3_dir = re.sub(re.compile('96', re.I), '44', mp3_dir)
                 else:
@@ -435,7 +446,10 @@ def main():
 
             if codec == 'FLAC' and options.dither:
                 # discard the temporary .WAVs we created to circumvent the FLAC bug.
-                os.system('rm "' + esc(mp3_dir) + '"/*.wav')
+                for dirpath, dirs, files in os.walk(mp3_dir, topdown=False):
+                    for name in files:
+                        if fnmatch.fnmatch(name, '*.wav'):
+                            os.remove(os.path.join(dirpath, name))
 
             print('\nEncoding with ' + codec + ' finished.')
 
