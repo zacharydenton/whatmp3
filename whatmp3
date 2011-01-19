@@ -158,7 +158,7 @@ def upload(torrent, encoder, bitrate, logfile, tracker='whatcd'):
     if not UPLOAD.has_key('releasetype'):
         releasetype = browser.find_control('releasetype')
         for item in releasetype.get_items():
-            print item, item.get_labels()[0].text
+            print(item, item.get_labels()[0].text)
         done = False
         while not done:
             response = raw_input('Release type (select a number from the list) ? ')
@@ -169,7 +169,7 @@ def upload(torrent, encoder, bitrate, logfile, tracker='whatcd'):
 
     # specify edition information
     if not UPLOAD.has_key('remaster'):
-        print 'leave blank if original release'
+        print('leave blank if original release')
         UPLOAD['remaster'] = get_input('remaster')
     if UPLOAD['remaster']:
         browser['remaster'] = UPLOAD['remaster']
@@ -194,7 +194,7 @@ def upload(torrent, encoder, bitrate, logfile, tracker='whatcd'):
 
     # specify media
     if not UPLOAD.has_key('media'):
-        print browser.find_control('media')
+        print(browser.find_control('media'))
         done = False
         while not done:
             response = raw_input('Media type? ').strip()
@@ -217,8 +217,8 @@ def upload(torrent, encoder, bitrate, logfile, tracker='whatcd'):
     if not UPLOAD.has_key('album_desc'):
         done = False
         desc = []
-        print "Album description:"
-        print "CTRL+C to end input"
+        print("Album description:")
+        print("CTRL+C to end input")
         while not done:
             try:
                 desc.append(raw_input())
@@ -231,8 +231,8 @@ def upload(torrent, encoder, bitrate, logfile, tracker='whatcd'):
     if not UPLOAD.has_key('release_desc'):
         done = False
         desc = []
-        print "Release description:"
-        print "CTRL+C to end input"
+        print("Release description:")
+        print("CTRL+C to end input")
         while not done:
             try:
                 desc.append(raw_input())
@@ -246,6 +246,7 @@ def upload(torrent, encoder, bitrate, logfile, tracker='whatcd'):
 
     # make a note of the torrent URL for later
     UPLOAD['upload_url'] = browser.find_link(text='Add format').url
+    print(UPLOAD['upload_url'])
 
 class Transcode(threading.Thread):
     def __init__(self, file, flacdir, mp3_dir, codec, options, cv):
