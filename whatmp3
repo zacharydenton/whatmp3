@@ -107,18 +107,21 @@ def login(username, password, tracker='whatcd'):
 
 def upload(torrent, encoder, bitrate, logfile, original=False, tracker='whatcd'):
     print "Uploading %s %s..." % (encoder, bitrate)
-    if original:
+    if not UPLOAD.has_key('upload_url'):
+        done = False
         upload_url = 'http://what.cd/upload.php'
-    else:
-        if not UPLOAD.has_key('upload_url'):
-            done = False
-            while not done:
-                upload_url = raw_input('Upload URL? ')
-                if 'y' in raw_input('"%s" - Is this correct? ' % upload_url).lower():
-                    done = True
- 
-            UPLOAD['upload_url'] = upload_url
-        upload_url = UPLOAD['upload_url']
+        print("Upload URL? ")
+        if 'y' in raw_input('"%s" - Is this correct? ' % upload_url).lower():
+            done = True
+        while not done:
+            upload_url = raw_input('Upload URL? ')
+            if 'y' in raw_input('"%s" - Is this correct? ' % upload_url).lower():
+                done = True
+
+        UPLOAD['upload_url'] = upload_url
+    upload_url = UPLOAD['upload_url']
+    if upload_url != 'http://what.cd/upload.php':
+        original = False
 
     browser = login(username, password, tracker)
     browser.open(upload_url)
