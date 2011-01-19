@@ -37,6 +37,10 @@ tracker = "http://tracker.what.cd:34000/"
 # Specify torrent passkey
 passkey = "tracker_passkey_here"
 
+# Specify site credentials (to upload torrents)
+username = ""
+password = ""
+
 # Max number of threads (ex: Normal: 1, Dual-core = 2, Hyperthreaded Dual-core = 4)
 max_threads = 4
 
@@ -54,7 +58,24 @@ enc_options = {
 # Default codecs - these are used if the --original option is specified
 default_codecs = ['V0', 'V2', 'Q8', '320', 'AAC']
 
+TRACKERS = {
+    'whatcd' : {
+        'login' : {
+            'url' : 'http://what.cd/login.php',
+            'fields' : {
+                'username' : 'username',
+                'password' : 'password'
+            }
+        },
+    },
+}
 ### END CONFIGURATION ###
+
+try:
+    import mechanize
+    UPLOAD = {}
+except:
+    UPLOAD = None
 
 codecs = []
 
@@ -66,6 +87,154 @@ def escape(pattern):
 def esc(pattern):
     pattern = re.sub('"', '\\"', pattern)
     return pattern
+
+def login(username, password, tracker='whatcd'):
+    tracker_info = TRACKERS[tracker]
+    login_info = tracker_info['login']
+
+    browser = mechanize.Browser()
+    browser.set_handle_robots(False) # ignore robots.txt
+    browser.open(login_info['url'])
+
+    fields = login_info['fields']
+    browser.select_form(nr=0)
+    browser[fields['username']] = username
+    browser[fields['password']] = password
+    response = browser.submit()
+
+    return browser
+
+def upload(torrent, encoder, bitrate, logfile, tracker='whatcd'):
+    if not UPLOAD.has_key('upload_url'):
+        UPLOAD['upload_url'] = 'http://what.cd/upload.php'
+    upload_url = UPLOAD['upload_url']
+
+    browser = login(username, password, tracker)
+    browser.open(upload_url)
+
+    browser.select_form(nr=len(list(browser.forms()))-1) # select the last form on the page
+
+    def get_input(field):
+        while True:
+            response = raw_input(field + '? ')
+            if 'y' in raw_input('"%s" - Is this correct? ' % response).lower():
+                return response.strip()
+    
+    def fill_out(field):
+        if not UPLOAD.has_key(field):
+            UPLOAD[field] = get_input(field)
+        browser[field] = UPLOAD[field]
+
+    # add the torrent file
+    browser.find_control('file_input').add_file(open(torrent))
+
+    # specify artists
+    fill_out('artists[]')
+
+    # specify album title
+    fill_out('title')
+
+    # specify album year
+    fill_out('year')
+
+    # specify record label
+    fill_out('record_label')
+
+    # specify catalogue number
+    fill_out('catalogue_number')
+
+    # specify release type
+    if not UPLOAD.has_key('releasetype'):
+        releasetype = browser.find_control('releasetype')
+        for item in releasetype.get_items():
+            print item, item.get_labels()[0].text
+        done = False
+        while not done:
+            response = raw_input('Release type (select a number from the list) ? ')
+            if 'y' in raw_input('"%s" - Is this correct? ' % response).lower():
+                UPLOAD['releasetype'] = response.strip()
+                done = True
+    browser.find_control('releasetype').set('1', UPLOAD['releasetype'])
+
+    # specify edition information
+    if not UPLOAD.has_key('remaster'):
+        print 'leave blank if original release'
+        UPLOAD['remaster'] = get_input('remaster')
+    if UPLOAD['remaster']:
+        browser['remaster'] = UPLOAD['remaster']
+    
+        # specify edition information
+        fill_out('remaster_year')
+    
+        # specify edition information
+        fill_out('remaster_title')
+    
+        # specify edition information
+        fill_out('remaster_record_label')
+    
+        # specify edition information
+        fill_out('remaster_catalogue_number')
+
+    # specify format 
+    browser.find_control('format').set('1', encoder)
+
+    # specify bitrate
+    browser.find_control('bitrate').set('1', bitrate)
+
+    # specify media
+    if not UPLOAD.has_key('media'):
+        print browser.find_control('media')
+        done = False
+        while not done:
+            response = raw_input('Media type? ').strip()
+            if 'y' in raw_input('"%s" - Is this correct? ' % response).lower():
+                UPLOAD['media'] = response
+                done = True
+    browser.find_control('media').set('1', UPLOAD['media'])
+
+    # add the logfile
+    if encoder == 'FLAC' and UPLOAD['media'] == 'CD':
+        browser.find_control('logfiles[]').add_file(open(logfile))
+
+    # specify tags
+    fill_out('tags')
+
+    # specify image
+    fill_out('image')
+
+    # specify album description
+    if not UPLOAD.has_key('album_desc'):
+        done = False
+        desc = []
+        print "Album description:"
+        print "CTRL+C to end input"
+        while not done:
+            try:
+                desc.append(raw_input())
+            except KeyboardInterrupt:
+                done = True
+        UPLOAD['album_desc'] = "\n".join(desc)
+    browser['album_desc'] = UPLOAD['album_desc']
+
+    # specify release description
+    if not UPLOAD.has_key('release_desc'):
+        done = False
+        desc = []
+        print "Release description:"
+        print "CTRL+C to end input"
+        while not done:
+            try:
+                desc.append(raw_input())
+            except KeyboardInterrupt:
+                done = True
+        UPLOAD['release_desc'] = "\n".join(desc)
+    browser['release_desc'] = UPLOAD['release_desc']
+
+    # submit the form
+    response = browser.submit()
+
+    # make a note of the torrent URL for later
+    UPLOAD['upload_url'] = response.geturl()
 
 class Transcode(threading.Thread):
     def __init__(self, file, flacdir, mp3_dir, codec, options, cv):
@@ -139,6 +308,7 @@ def add_enc_option(option, opt, value, parser):
     codecs.append(opt[2:])
 
 def main():
+    global UPLOAD
     # Parse options and arguments
     usage_text = "%prog [options] [--320 --V2 --Q8 --AAC ...] /path/to/FLAC"
     info_text = "Depends on flac, metaflac, mktorrent, and optionally oggenc, lame, neroAacEnc, neroAacTag, mp3gain, aacgain, and vorbisgain."
@@ -157,6 +327,7 @@ def main():
     parser.add_option('-r', '--replaygain', action='store_true',    dest='replaygain',  default=False,  help='add ReplayGain to new files (Default: False)')
     parser.add_option('--threads',      type="int",     dest='max_threads', default=max_threads,    help='set number of threads THREADS (Default: 4)', metavar='THREADS')
     parser.add_option('-c', '--original',     action="store_true", dest='original', default=False, help='create a torrent for the original FLACs and convert to all of your default formats (Default:False)')
+    parser.add_option('-u', '--upload',     action="store_true", dest='upload', default=False, help='upload the torrent after creating it (Default:False)')
 
     for enc_opt in enc_options.keys():
         parser.add_option("--" + enc_opt, action="callback", callback=add_enc_option)
@@ -185,19 +356,36 @@ def main():
         flacdir = os.path.abspath(flacdir)
         flacfiles = []
 
+        if UPLOAD:
+            UPLOAD = {}
+
+        logfiles = []
+
         for dirpath, dirs, files in os.walk(flacdir, topdown=False):
             for name in files:
                 if fnmatch.fnmatch(name, '*.flac'):
                     flacfiles.append(os.path.join(dirpath, name))
+                elif fnmatch.fnmatch(name, '*.log'):
+                    logfiles.append(os.path.join(dirpath, name))
 
         if options.original:
             print('Working with FLAC...')
 
             if options.torrent_dir and options.passkey and options.tracker and not options.notorrent:
                 if options.verbose: print('Creating torrent...')
-                torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, esc(options.torrent_dir + os.path.basename(flacdir)), esc(flacdir))
+                torrent = escape(options.torrent_dir + os.path.basename(flacdir)) + ".torrent"
+                torrent_command = 'mktorrent -p -a %s/announce -o "%s" "%s"' % (options.tracker + options.passkey, torrent, esc(flacdir))
                 if options.verbose: print(escape(torrent_command))
                 os.system(escape(torrent_command))
+
+                if options.upload:
+                    encoder = 'FLAC'
+                    if options.dither:
+                        bitrate = '24bit Lossless'
+                    else:
+                        bitrate = 'Lossless'
+                    logfile = logfiles[0]
+                    upload(torrent, encoder, bitrate, logfile, 'whatcd')
 
             print('Finished working with FLAC')
 
@@ -271,12 +459,37 @@ def main():
 
             if options.torrent_dir and options.passkey and options.tracker and not options.notorrent:
                 if options.verbose: print('Creating torrent...')
-                torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape(options.torrent_dir + os.path.basename(mp3_dir)), mp3_dir)
+                torrent = escape(options.torrent_dir + os.path.basename(mp3_dir)) + ".torrent"
+                torrent_command = 'mktorrent -p -a %s/announce -o "%s" "%s"' % (options.tracker + options.passkey, torrent, mp3_dir)
                 if options.verbose: print(escape(torrent_command))
                 os.system(escape(torrent_command))
+
+                if options.upload:
+                    if codec == '320':
+                        encoder = 'MP3'
+                        bitrate = '320'
+                    elif codec == 'V0':
+                        encoder = 'MP3'
+                        bitrate = 'V0 (VBR)'
+                    elif codec == 'V2':
+                        encoder = 'MP3'
+                        bitrate = 'V2 (VBR)'
+                    elif codec == 'Q8':
+                        encoder = 'Ogg Vorbis'
+                        bitrate = 'q8.x (VBR)'
+                    elif codec == 'AAC':
+                        encoder = 'AAC'
+                        bitrate = '320'
+                    else:
+                        encoder = 'FLAC'
+                        bitrate = 'Lossless'
+
+                    logfile = logfiles[0]
+                    upload(torrent, encoder, bitrate, logfile, 'whatcd')
 
         if options.verbose: print('All done with ' + flacdir + ' ...')
     return 0
 
 if __name__ == '__main__':
     main()
+    #upload('x.torrent', 'FLAC', 'Lossless', 'x.log', 'whatcd')
