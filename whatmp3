@@ -261,6 +261,10 @@ def upload(torrent, encoder, bitrate, logfiles, original=False, tracker='whatcd'
     # submit the form
     response = browser.submit()
 
+    # save the new upload link
+    if original:
+        UPLOAD['upload_url'] = browser.find_link(text='[Add format]')
+
 class Transcode(threading.Thread):
     def __init__(self, file, flacdir, mp3_dir, codec, options, cv):
         threading.Thread.__init__(self)
