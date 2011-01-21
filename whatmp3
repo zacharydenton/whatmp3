@@ -152,23 +152,35 @@ def upload(torrent, encoder, bitrate, logfiles, artists=None, original=False, tr
             browser[field] = UPLOAD[field]
 
     def fill_multiple(field, items):
+        '''Fill out many TextControls with the same name'''
         # save a copy of the unfilled control - we may need it later
         unfilled_control = copy.deepcopy(browser.find_control(field))
 
         # fill out the existing control
         control = browser.find_control(field)
-        if isinstance(control, mechanize._html.ClientForm.FileControl):
-            control.add_file(open(items[0]), 'text/plain', os.path.basename(items[0]))
-        else:
-            control._value = items[0]
+        control._value = items[0]
 
         try:
             for i, item in enumerate(items[1:]):
                 control = copy.deepcopy(unfilled_control)
-                if isinstance(control, mechanize._html.ClientForm.FileControl):
-                    control.add_file(open(item), 'text/plain', os.path.basename(item))
-                else:
-                    control._value = item
+                control._value = item
+                control.add_to_form(browser.form)
+        except IndexError:
+            pass
+
+    def upload_multiple(field, files):
+        '''Fill out many FileControls with the same name'''
+        # save a copy of the unfilled control - we may need it later
+        unfilled_control = copy.deepcopy(browser.find_control(field))
+
+        # fill out the existing control
+        control = browser.find_control(field)
+        control.add_file(open(items[0]), 'text/plain', os.path.basename(items[0]))
+
+        try:
+            for i, item in enumerate(items[1:]):
+                control = copy.deepcopy(unfilled_control)
+                control.add_file(open(item), 'text/plain', os.path.basename(item))
                 control.add_to_form(browser.form)
         except IndexError:
             pass
@@ -264,7 +276,7 @@ def upload(torrent, encoder, bitrate, logfiles, artists=None, original=False, tr
     # add the logfile
     if encoder == 'FLAC' and UPLOAD['media'] == 'CD':
         try:
-            fill_multiple('logfiles[]', logfiles)
+            upload_multiple('logfiles[]', logfiles)
         except:
             pass
 
