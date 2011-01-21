@@ -222,7 +222,7 @@ def upload(torrent, encoder, bitrate, logfiles, original=False, tracker='whatcd'
 
             # fill out the existing logfile control
             logfile_control = browser.find_control('logfiles[]')
-            logfile_control.add_file(open(logfile), 'text/plain', os.path.basename(logfile))
+            logfile_control.add_file(open(logfile), 'text/plain', os.path.basename(logfiles[0]))
             for i, logfile in enumerate(logfiles[1:]):
                 logfile_control = copy.deepcopy(unfilled_logfile_control)
                 logfile_control.add_file(open(logfile), 'text/plain', os.path.basename(logfile))
