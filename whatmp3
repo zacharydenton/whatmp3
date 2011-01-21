@@ -180,7 +180,7 @@ def upload(torrent, encoder, bitrate, logfiles, artists=None, original=False, tr
     if original:
         if UPLOAD.has_key('artists[]'):
             if 'y' in raw_input('Artists: "%s" - is this OK? ' % str(list(UPLOAD['artists[]']))):
-                fill_multiple('artists[]', UPLOAD['artists'])
+                fill_multiple('artists[]', UPLOAD['artists[]'])
         else:
             done = False
             while not done:
