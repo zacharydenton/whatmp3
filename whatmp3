@@ -106,7 +106,7 @@ def login(username, password, tracker='whatcd'):
 
     return browser
 
-def upload(torrent, encoder, bitrate, logfiles, original=False, tracker='whatcd'):
+def upload(torrent, encoder, bitrate, logfiles, artists=None, original=False, tracker='whatcd'):
     print "Uploading %s %s..." % (encoder, bitrate)
     if not UPLOAD.has_key('upload_url'):
         done = False
@@ -141,19 +141,56 @@ def upload(torrent, encoder, bitrate, logfiles, original=False, tracker='whatcd'
         if UPLOAD[field]:
             browser[field] = UPLOAD[field]
 
+    def fill_multiple(field, items):
+        # save a copy of the unfilled control - we may need it later
+        unfilled_control = copy.deepcopy(browser.find_control(field))
+
+        # fill out the existing control
+        control = browser.find_control(field)
+        if isinstance(control, mechanize._html.ClientForm.FileControl):
+            control.add_file(open(items[0]), 'text/plain', os.path.basename(items[0]))
+        else:
+            control._value = items[0]
+
+        try:
+            for i, item in enumerate(items[1:]):
+                control = copy.deepcopy(unfilled_control)
+                if isinstance(control, mechanize._html.ClientForm.FileControl):
+                    control.add_file(open(item), 'text/plain', os.path.basename(item))
+                else:
+                    control._value = item
+                control.add_to_form(browser.form)
+        except IndexError:
+            pass
+
     # add the torrent file
     browser.find_control('file_input').add_file(open(torrent), 'text/plain', os.path.basename(torrent))
 
     # specify artists
     if original:
-        fill_out('artists[]')
+        if UPLOAD.has_key('artists[]'):
+            if 'y' in raw_input('Artists: "%s" - is this OK? ' % str(list(UPLOAD['artists[]']))):
+                fill_multiple('artists[]', UPLOAD['artists'])
+        else:
+            done = False
+            while not done:
+                artists = set([artist.strip() for artist in raw_input('Semicolon-separated artist list. ').split(';')])
+                if 'y' in raw_input('Artists: "%s" - is this OK? ' % str(list(artists))):
+                    done = True
+            fill_multiple('artists[]', artists)
 
     # specify album title
     if original:
+        if UPLOAD.has_key('title'):
+            if not 'y' in raw_input('Title: "%s" - is this OK? ' % UPLOAD['title']):
+                del UPLOAD['title']
         fill_out('title')
 
     # specify album year
     if original:
+        if UPLOAD.has_key('year'):
+            if not 'y' in raw_input('Year: "%s" - is this OK? ' % UPLOAD['year']):
+                del UPLOAD['year']
         fill_out('year')
 
     # specify record label
@@ -216,20 +253,10 @@ def upload(torrent, encoder, bitrate, logfiles, original=False, tracker='whatcd'
 
     # add the logfile
     if encoder == 'FLAC' and UPLOAD['media'] == 'CD':
-        if len(logfiles) > 1:
-            # save a copy of the unfilled logfile control - we will clone it later
-            unfilled_logfile_control = copy.deepcopy(browser.find_control('logfiles[]'))
-
-            # fill out the existing logfile control
-            logfile_control = browser.find_control('logfiles[]')
-            logfile_control.add_file(open(logfiles[0]), 'text/plain', os.path.basename(logfiles[0]))
-            for i, logfile in enumerate(logfiles[1:]):
-                logfile_control = copy.deepcopy(unfilled_logfile_control)
-                logfile_control.add_file(open(logfile), 'text/plain', os.path.basename(logfile))
-                logfile_control.add_to_form(browser.form)
-        else:
-            logfile = logfiles[0]
-            browser.find_control('logfiles[]').add_file(open(logfile), 'text/plain', os.path.basename(logfile))
+        try:
+            fill_multiple('logfiles[]', logfiles)
+        except:
+            pass
 
     # specify tags
     if original:
@@ -293,6 +320,13 @@ class Transcode(threading.Thread):
             temp = re.sub('\S.*=', '', os.popen(escape(tagcommand)).read().rstrip())
             tags.update({tag:temp})
             del temp
+
+        # save the tags so that we may use them if we upload these files later
+        if not UPLOAD.has_key('artists[]'):
+            UPLOAD['artists[]'] = set()
+        UPLOAD['artists[]'].add(tags['ARTIST'])
+        UPLOAD['title'] = tags['TITLE']
+        UPLOAD['year'] = re.search('([0-9]{4})', tags['DATE']).group(0)
 
         if self.options.zeropad and len(tags['TRACKNUMBER']) == 1:
             tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
