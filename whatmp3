@@ -90,6 +90,16 @@ def esc(pattern):
     pattern = re.sub('"', '\\"', pattern)
     return pattern
 
+def get_tags(filename):
+    tags = {}
+    for tag in ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE'):
+        tagcommand = 'metaflac --show-tag=' + esc(tag) + ' "' + esc(self.file) + '"'
+        temp = re.sub('\S.*=', '', os.popen(escape(tagcommand)).read().rstrip())
+        tags.update({tag:temp})
+        del temp
+
+    return tags
+
 def login(username, password, tracker='whatcd'):
     tracker_info = TRACKERS[tracker]
     login_info = tracker_info['login']
@@ -321,13 +331,6 @@ class Transcode(threading.Thread):
             tags.update({tag:temp})
             del temp
 
-        # save the tags so that we may use them if we upload these files later
-        if not UPLOAD.has_key('artists[]'):
-            UPLOAD['artists[]'] = set()
-        UPLOAD['artists[]'].add(tags['ARTIST'])
-        UPLOAD['title'] = tags['TITLE']
-        UPLOAD['year'] = re.search('([0-9]{4})', tags['DATE']).group(0)
-
         if self.options.zeropad and len(tags['TRACKNUMBER']) == 1:
             tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
 
@@ -454,6 +457,15 @@ def main():
                 os.system(escape(torrent_command))
 
                 if options.upload:
+                    for flacfile in flacfiles:
+                        tags = get_tags(flacfile)
+                        # save the tags so that we may use them if we upload these files later
+                        if not UPLOAD.has_key('artists[]'):
+                            UPLOAD['artists[]'] = set()
+                        UPLOAD['artists[]'].add(tags['ARTIST'])
+                        UPLOAD['title'] = tags['TITLE']
+                        UPLOAD['year'] = re.search('([0-9]{4})', tags['DATE']).group(0)
+
                     encoder = 'FLAC'
                     if options.dither:
                         bitrate = '24bit Lossless'
