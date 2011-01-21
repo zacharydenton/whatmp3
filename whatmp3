@@ -7,6 +7,7 @@
 
 import os
 import re
+import copy
 import fnmatch
 import shutil
 from optparse import OptionParser
@@ -215,24 +216,20 @@ def upload(torrent, encoder, bitrate, logfiles, original=False, tracker='whatcd'
 
     # add the logfile
     if encoder == 'FLAC' and UPLOAD['media'] == 'CD':
-        try:
-            if len(logfiles) > 1:
-                # save a copy of the unfilled logfile control - we will clone it later
-                unfilled_logfile_control = copy.deepcopy(browser.find_control('logfiles[]'))
+        if len(logfiles) > 1:
+            # save a copy of the unfilled logfile control - we will clone it later
+            unfilled_logfile_control = copy.deepcopy(browser.find_control('logfiles[]'))
 
-                # fill out the existing logfile control
-                logfile_control = browser.find_control('logfiles[]')
+            # fill out the existing logfile control
+            logfile_control = browser.find_control('logfiles[]')
+            logfile_control.add_file(open(logfile), 'text/plain', os.path.basename(logfile))
+            for i, logfile in enumerate(logfiles[1:]):
+                logfile_control = copy.deepcopy(unfilled_logfile_control)
                 logfile_control.add_file(open(logfile), 'text/plain', os.path.basename(logfile))
-                for i, logfile in enumerate(logfiles[1:]):
-                    logfile_control = copy.deepcopy(unfilled_logfile_control)
-                    logfile_control.add_file(open(logfile), 'text/plain', os.path.basename(logfile))
-                    logfile_control.add_to_form(browser.form)
-            else:
-                logfile = logfiles[0]
-                browser.find_control('logfiles[]').add_file(open(logfile), 'text/plain', os.path.basename(logfile))
-
-        except:
-            pass
+                logfile_control.add_to_form(browser.form)
+        else:
+            logfile = logfiles[0]
+            browser.find_control('logfiles[]').add_file(open(logfile), 'text/plain', os.path.basename(logfile))
 
     # specify tags
     if original:
